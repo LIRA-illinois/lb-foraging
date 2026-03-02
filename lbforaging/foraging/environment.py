@@ -1,11 +1,10 @@
+from typing import Iterable, Literal, Optional
 from collections import namedtuple, defaultdict
 from enum import Enum
 from itertools import product
 import logging
-from typing import Iterable, Literal
 
 import gymnasium as gym
-from gymnasium.utils import seeding
 import numpy as np
 
 
@@ -28,6 +27,11 @@ class CellEntity(Enum):
 
 class Player:
     def __init__(self):
+        self.reset()
+
+    def reset(self):
+        """ reset player's internal state to despawn it from the environment and start the next episode with a clean slate
+        """
         self.controller = None
         self.position = None
         self.level = None
@@ -37,7 +41,7 @@ class Player:
         self.history = None
         self.current_step = None
 
-    def setup(self, position, level, field_size):
+    def spawn(self, position, level, field_size):
         self.history = []
         self.position = position
         self.level = level
@@ -184,10 +188,6 @@ class ForagingEnv(gym.Env):
 
         self.n_players = len(self.players)
 
-    def seed(self, seed=None):
-        if seed is not None:
-            self._np_random, seed = seeding.np_random(seed)
-
     def _get_observation_space(self):
         """The Observation Space for each agent.
         - all of the board (board_size^2) with foods
@@ -256,7 +256,7 @@ class ForagingEnv(gym.Env):
         players = []
         for p in obs.players:
             player = Player()
-            player.setup(p.position, p.level, obs.field.shape)
+            player.spawn(p.position, p.level, obs.field.shape)
             player.score = p.score if p.score else 0
             players.append(player)
 
@@ -395,6 +395,7 @@ class ForagingEnv(gym.Env):
         player_permutation = self.np_random.permutation(len(self.players))
         min_player_levels = min_player_levels[player_permutation]
         max_player_levels = max_player_levels[player_permutation]
+
         for player, min_player_level, max_player_level in zip(
             self.players, min_player_levels, max_player_levels
         ):
@@ -404,8 +405,9 @@ class ForagingEnv(gym.Env):
             while attempts < 1000:
                 row = self.np_random.integers(0, self.rows)
                 col = self.np_random.integers(0, self.cols)
+
                 if self._is_empty_location(row, col):
-                    player.setup(
+                    player.spawn(
                         (row, col),
                         self.np_random.integers(min_player_level, max_player_level + 1),
                         self.field_size,
@@ -632,15 +634,18 @@ class ForagingEnv(gym.Env):
     def _get_info(self):
         return {}
 
-    def reset(self, seed=None, options=None):
-        if seed is not None:
-            # setting seed
-            super().reset(seed=seed, options=options)
+    def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
+        super().reset(seed=seed, options=options)
 
+        # despawn any players and food from the previous episode
+        for player in self.players:
+            player.reset()
         self.field = np.zeros(self.field_size, np.int32)
-        self.spawn_players(self.min_player_level, self.max_player_level)
-        player_levels = sorted([player.level for player in self.players])
 
+        # spawn players and food in the environment
+        self.spawn_players(self.min_player_level, self.max_player_level)
+
+        player_levels = sorted([player.level for player in self.players])
         self.spawn_food(
             self.max_num_food,
             min_levels=self.min_food_level,
@@ -650,6 +655,7 @@ class ForagingEnv(gym.Env):
                 else np.array([sum(player_levels[:3])] * self.max_num_food)
             ),
         )
+
         self.current_step = 0
         self._game_over = False
         self._gen_valid_moves()
@@ -752,8 +758,6 @@ class ForagingEnv(gym.Env):
         elif self.reward_type == "team":
             # entire team's collective reward
             reward_out = np.sum(rewards)
-            print(reward_out)
-            __import__('ipdb').set_trace(context=3)
 
         done = self._game_over
         truncated = False

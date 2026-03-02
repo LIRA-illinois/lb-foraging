@@ -2,7 +2,7 @@ from collections import namedtuple, defaultdict
 from enum import Enum
 from itertools import product
 import logging
-from typing import Iterable
+from typing import Iterable, Literal
 
 import gymnasium as gym
 from gymnasium.utils import seeding
@@ -33,7 +33,7 @@ class Player:
         self.level = None
         self.field_size = None
         self.score = None
-        self.reward = 0
+        self.reward = 0.0
         self.history = None
         self.current_step = None
 
@@ -89,6 +89,7 @@ class ForagingEnv(gym.Env):
         sight,
         max_episode_steps,
         force_coop,
+        reward_type: Literal["team", "individual"] = "team",
         normalize_reward=True,
         grid_observation=False,
         observe_agent_levels=True,
@@ -160,6 +161,7 @@ class ForagingEnv(gym.Env):
 
         self.sight = sight
         self.force_coop = force_coop
+        self.reward_type = reward_type
         self._game_over = None
 
         self._rendering_initialized = False
@@ -744,11 +746,20 @@ class ForagingEnv(gym.Env):
             p.score += p.reward
 
         rewards = [p.reward for p in self.players]
+        if self.reward_type == "individual":
+            # list of each agent's rewards
+            reward_out = rewards
+        elif self.reward_type == "team":
+            # entire team's collective reward
+            reward_out = np.sum(rewards)
+            print(reward_out)
+            __import__('ipdb').set_trace(context=3)
+
         done = self._game_over
         truncated = False
         info = self._get_info()
 
-        return self._make_gym_obs(), rewards, done, truncated, info
+        return self._make_gym_obs(), reward_out, done, truncated, info
 
     def _init_render(self):
         from .rendering import Viewer

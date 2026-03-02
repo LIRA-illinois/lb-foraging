@@ -170,8 +170,9 @@ class ForagingEnv(gym.Env):
         self._grid_observation = grid_observation
         self._observe_agent_levels = observe_agent_levels
 
+        self.n_actions = len(Action)
         self.action_space = gym.spaces.Tuple(
-            tuple([gym.spaces.Discrete(6)] * len(self.players))
+            tuple([gym.spaces.Discrete(self.n_actions)] * len(self.players))
         )
         self.observation_space = gym.spaces.Tuple(
             tuple([self._get_observation_space()] * len(self.players))
@@ -179,7 +180,7 @@ class ForagingEnv(gym.Env):
 
         self.viewer = None
 
-        self.n_agents = len(self.players)
+        self.n_players = len(self.players)
 
     def seed(self, seed=None):
         if seed is not None:
@@ -446,9 +447,45 @@ class ForagingEnv(gym.Env):
         )
 
     def get_valid_actions(self) -> list:
+        # get all valid joint actions for the team of agents
+        # the size of this object blows up exponentially w/ the number of agents
+        # with only 4 agents and 6 actions per agent, you get 400 joint actions
         return list(product(*[self._valid_actions[player] for player in self.players]))
 
-    def _make_obs(self, player):
+    def get_avail_actions(self):
+        # added this method to interface with PYMARL training loop
+        # returns list of agent lists, where each agent's list has binary values representing
+        # available actions
+        # based on the MAIC paper's implementation of LBF with some minor cleanup
+        # https://github.com/mansicer/MAIC/blob/main/src/envs/lbforaging/foraging.py
+
+        def get_avail_agent_actions(player: Player):
+            avail_actions = [0] * self.n_actions
+            player_actions = self._valid_actions[player]
+            for action in player_actions:
+                avail_actions[action.value] = 1
+            return avail_actions
+
+        return [get_avail_agent_actions(player) for player in self.players]
+
+    def get_state(self):
+        # added this method to interface with PYMARL training loop, taken from the MAIC paper's implementation of LBF
+        # https://github.com/mansicer/MAIC/blob/main/src/envs/lbforaging/foraging.py
+        # This is not a real state since the team may not be able to collectively observe
+        # all info relevant for team decision-making, but I don't want to mess with it
+        # and end up breaking training
+
+        obs = self._make_gym_obs()
+        state = obs[0]
+        for i in range(self.n_players - 1):
+            state = np.concatenate([state, obs[i + 1]])
+        return state
+
+    def get_obs(self):
+        # added this method to interface with PYMARL training loop
+        return self._make_gym_obs()
+
+    def _make_obs(self, player) -> Observation:
         return self.Observation(
             actions=self._valid_actions[player],
             players=[
@@ -605,9 +642,11 @@ class ForagingEnv(gym.Env):
         self.spawn_food(
             self.max_num_food,
             min_levels=self.min_food_level,
-            max_levels=self.max_food_level
-            if self.max_food_level is not None
-            else np.array([sum(player_levels[:3])] * self.max_num_food),
+            max_levels=(
+                self.max_food_level
+                if self.max_food_level is not None
+                else np.array([sum(player_levels[:3])] * self.max_num_food)
+            ),
         )
         self.current_step = 0
         self._game_over = False
@@ -721,11 +760,30 @@ class ForagingEnv(gym.Env):
         if not self._rendering_initialized:
             self._init_render()
 
-        return self.viewer.render(self, return_rgb_array=self.render_mode == "rgb_array")
+        return self.viewer.render(
+            self, return_rgb_array=self.render_mode == "rgb_array"
+        )
 
     def close(self):
         if self.viewer:
             self.viewer.close()
+
+    def get_env_info(self):
+        env_info = {
+            "state_shape": self._get_state_size(),
+            "obs_shape": self._get_obs_size(),
+            "n_actions": self.n_actions,
+            "n_agents": self.n_players,
+        }
+        return env_info
+
+    def _get_obs_size(self):
+        """Returns the shape of the observation"""
+        return self._get_observation_space().shape[0]
+
+    def _get_state_size(self):
+        """Returns the shape of the state"""
+        return self._get_obs_size() * self.n_players
 
     def test_make_gym_obs(self):
         """Test wrapper to test the current observation in a public manner."""

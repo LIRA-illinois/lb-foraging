@@ -4,12 +4,9 @@ from gymnasium import register
 
 
 # registering all these envs takes forever, so use a reduced version
-sizes = [10]
+sizes = range(4, 12)
 players = range(2, 5)
-foods = range(1, 3)
-# sizes = range(5, 20)
-# players = range(2, 10)
-# foods = range(1, 10)
+foods = range(1, 5)
 
 max_food_level = [None]  # [None, 1]
 coop = [True, False]

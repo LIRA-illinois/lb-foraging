@@ -68,7 +68,7 @@ def get_env_id(
     return env_id
 
 
-def register_envs():
+def register_envs(max_episode_steps: int):
     for s, p, f, mfl, c, po, pen in product(
         sizes, players, foods, max_food_level, coop, partial_obs, pens
     ):
@@ -85,7 +85,7 @@ def register_envs():
                 "max_food_level": mfl,
                 "max_num_food": f,
                 "sight": 2 if po else s,
-                "max_episode_steps": 50,
+                "max_episode_steps": max_episode_steps,
                 "force_coop": c,
                 "grid_observation": False,
                 "penalty": 0.1 if pen else 0.0,

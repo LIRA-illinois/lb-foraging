@@ -6,7 +6,7 @@ import logging
 
 import gymnasium as gym
 import numpy as np
-
+from numpy.typing import NDArray
 
 class Action(Enum):
     NONE = 0
@@ -663,7 +663,7 @@ class ForagingEnv(gym.Env):
         nobs = self._make_gym_obs()
         return nobs, self._get_info()
 
-    def step(self, actions):
+    def step(self, actions: tuple | NDArray):
         self.current_step += 1
 
         for p in self.players:

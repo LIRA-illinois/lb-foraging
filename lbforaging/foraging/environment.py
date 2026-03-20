@@ -98,7 +98,7 @@ class ForagingEnv(gym.Env):
         grid_observation=False,
         observe_agent_levels=True,
         penalty=0.0,
-        render_mode=None,
+        render_mode="rgb_array",
     ):
         self.logger = logging.getLogger(__name__)
         self.render_mode = render_mode
@@ -774,6 +774,7 @@ class ForagingEnv(gym.Env):
     def render(self):
         if not self._rendering_initialized:
             self._init_render()
+        trace
 
         return self.viewer.render(
             self, return_rgb_array=self.render_mode == "rgb_array"

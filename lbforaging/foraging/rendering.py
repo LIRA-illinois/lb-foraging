@@ -122,6 +122,7 @@ class Viewer(object):
         self._draw_players(env)
 
         if return_rgb_array:
+            pyglet.options["headless"] = True
             buffer = pyglet.image.get_buffer_manager().get_color_buffer()
             image_data = buffer.get_image_data()
             arr = np.frombuffer(image_data.get_data(), dtype=np.uint8)

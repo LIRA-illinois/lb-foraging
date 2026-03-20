@@ -766,6 +766,9 @@ class ForagingEnv(gym.Env):
         return self._make_gym_obs(), reward_out, done, truncated, info
 
     def _init_render(self):
+        if self.render_mode == "rgb_array":
+            import pyglet
+            pyglet.options["headless"] = True
         from .rendering import Viewer
 
         self.viewer = Viewer((self.rows, self.cols))
@@ -774,7 +777,6 @@ class ForagingEnv(gym.Env):
     def render(self):
         if not self._rendering_initialized:
             self._init_render()
-        trace
 
         return self.viewer.render(
             self, return_rgb_array=self.render_mode == "rgb_array"

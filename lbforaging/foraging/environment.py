@@ -8,6 +8,7 @@ import gymnasium as gym
 import numpy as np
 from numpy.typing import NDArray
 
+
 class Action(Enum):
     NONE = 0
     NORTH = 1
@@ -30,8 +31,7 @@ class Player:
         self.reset()
 
     def reset(self):
-        """ reset player's internal state to despawn it from the environment and start the next episode with a clean slate
-        """
+        """reset player's internal state to despawn it from the environment and start the next episode with a clean slate"""
         self.controller = None
         self.position = None
         self.level = None
@@ -396,6 +396,7 @@ class ForagingEnv(gym.Env):
         min_player_levels = min_player_levels[player_permutation]
         max_player_levels = max_player_levels[player_permutation]
 
+
         for player, min_player_level, max_player_level in zip(
             self.players, min_player_levels, max_player_levels
         ):
@@ -463,14 +464,14 @@ class ForagingEnv(gym.Env):
         # based on the MAIC paper's implementation of LBF with some minor cleanup
         # https://github.com/mansicer/MAIC/blob/main/src/envs/lbforaging/foraging.py
 
-        def get_avail_agent_actions(player: Player):
-            avail_actions = [0] * self.n_actions
-            player_actions = self._valid_actions[player]
-            for action in player_actions:
-                avail_actions[action.value] = 1
-            return avail_actions
+        return [self._get_avail_agent_actions(player) for player in self.players]
 
-        return [get_avail_agent_actions(player) for player in self.players]
+    def _get_avail_agent_actions(self, player: Player):
+        avail_actions = [0] * self.n_actions
+        player_actions = self._valid_actions[player]
+        for action in player_actions:
+            avail_actions[action.value] = 1
+        return avail_actions
 
     def get_state(self):
         # added this method to interface with PYMARL training loop, taken from the MAIC paper's implementation of LBF
@@ -489,9 +490,35 @@ class ForagingEnv(gym.Env):
         # added this method to interface with PYMARL training loop
         return self._make_gym_obs()
 
+    def _make_gym_obs(self):
+        observations = [self._make_obs(player) for player in self.players]
+
+        if self._grid_observation:
+            layers = self._make_global_grid_arrays()
+            agents_bounds = [
+                self._get_agent_grid_bounds(*player.position) for player in self.players
+            ]
+            nobs = tuple(
+                [
+                    layers[:, start_x:end_x, start_y:end_y]
+                    for start_x, end_x, start_y, end_y in agents_bounds
+                ]
+            )
+        else:
+            nobs = tuple([self._make_obs_array(obs) for obs in observations])
+
+        # check the space of obs
+        for i, obs in enumerate(nobs):
+            assert self.observation_space[i].contains(
+                obs
+            ), f"obs space error: obs: {obs}, obs_space: {self.observation_space[i]}"
+
+        return nobs
+
     def _make_obs(self, player) -> Observation:
         return self.Observation(
             actions=self._valid_actions[player],
+            # get player's relative position compared to ego agent
             players=[
                 self.PlayerObservation(
                     position=self._transform_to_neighborhood(
@@ -525,111 +552,95 @@ class ForagingEnv(gym.Env):
             current_step=self.current_step,
         )
 
-    def _make_gym_obs(self):
-        def make_obs_array(observation):
-            obs = np.zeros(self.observation_space[0].shape, dtype=np.float32)
-            # obs[: observation.field.size] = observation.field.flatten()
-            # self player is always first
-            seen_players = [p for p in observation.players if p.is_self] + [
-                p for p in observation.players if not p.is_self
-            ]
+    def _make_obs_array(self, observation):
+        obs = np.zeros(self.observation_space[0].shape, dtype=np.float32)
+        # obs[: observation.field.size] = observation.field.flatten()
+        # food observation
 
-            for i in range(self.max_num_food):
-                obs[3 * i] = -1
-                obs[3 * i + 1] = -1
-                obs[3 * i + 2] = 0
+        # max number of foods is known to agent, initialize each food's entry as [-1, -1, 0]
+        for i in range(self.max_num_food):
+            obs[3 * i] = -1
+            obs[3 * i + 1] = -1
+            obs[3 * i + 2] = 0
 
-            for i, (y, x) in enumerate(zip(*np.nonzero(observation.field))):
-                obs[3 * i] = y
-                obs[3 * i + 1] = x
-                obs[3 * i + 2] = observation.field[y, x]
+        # agent can observe the food's x, y, and level
+        for i, (y, x) in enumerate(zip(*np.nonzero(observation.field))):
+            obs[3 * i] = y
+            obs[3 * i + 1] = x
+            obs[3 * i + 2] = observation.field[y, x]
 
-            player_obs_len = 3 if self._observe_agent_levels else 2
-            for i in range(len(self.players)):
-                obs[self.max_num_food * 3 + player_obs_len * i] = -1
-                obs[self.max_num_food * 3 + player_obs_len * i + 1] = -1
-                if self._observe_agent_levels:
-                    obs[self.max_num_food * 3 + player_obs_len * i + 2] = 0
 
-            for i, p in enumerate(seen_players):
-                obs[self.max_num_food * 3 + player_obs_len * i] = p.position[0]
-                obs[self.max_num_food * 3 + player_obs_len * i + 1] = p.position[1]
-                if self._observe_agent_levels:
-                    obs[self.max_num_food * 3 + player_obs_len * i + 2] = p.level
+        # player observation
+        # number of other players known to agent, initialize each agent's entry as [-1, -1, 0]
+        player_obs_len = 3 if self._observe_agent_levels else 2
+        for i in range(len(self.players)):
+            obs[self.max_num_food * 3 + player_obs_len * i] = -1
+            obs[self.max_num_food * 3 + player_obs_len * i + 1] = -1
+            if self._observe_agent_levels:
+                obs[self.max_num_food * 3 + player_obs_len * i + 2] = 0
 
-            return obs
 
-        def make_global_grid_arrays():
-            """
-            Create global arrays for grid observation space
-            """
-            grid_shape_x, grid_shape_y = self.field_size
-            grid_shape_x += 2 * self.sight
-            grid_shape_y += 2 * self.sight
-            grid_shape = (grid_shape_x, grid_shape_y)
+        # self player is always first
+        seen_players = [p for p in observation.players if p.is_self] + [
+            p for p in observation.players if not p.is_self
+        ]
 
-            agents_layer = np.zeros(grid_shape, dtype=np.float32)
-            for player in self.players:
-                player_x, player_y = player.position
-                if self._observe_agent_levels:
-                    agents_layer[player_x + self.sight, player_y + self.sight] = (
-                        player.level
-                    )
-                else:
-                    agents_layer[player_x + self.sight, player_y + self.sight] = 1
+        for i, p in enumerate(seen_players):
+            obs[self.max_num_food * 3 + player_obs_len * i] = p.position[0]
+            obs[self.max_num_food * 3 + player_obs_len * i + 1] = p.position[1]
+            if self._observe_agent_levels:
+                obs[self.max_num_food * 3 + player_obs_len * i + 2] = p.level
 
-            foods_layer = np.zeros(grid_shape, dtype=np.float32)
-            foods_layer[self.sight : -self.sight, self.sight : -self.sight] = (
-                self.field.copy()
-            )
+        return obs
 
-            access_layer = np.ones(grid_shape, dtype=np.float32)
-            # out of bounds not accessible
-            access_layer[: self.sight, :] = 0.0
-            access_layer[-self.sight :, :] = 0.0
-            access_layer[:, : self.sight] = 0.0
-            access_layer[:, -self.sight :] = 0.0
-            # agent locations are not accessible
-            for player in self.players:
-                player_x, player_y = player.position
-                access_layer[player_x + self.sight, player_y + self.sight] = 0.0
-            # food locations are not accessible
-            foods_x, foods_y = self.field.nonzero()
-            for x, y in zip(foods_x, foods_y):
-                access_layer[x + self.sight, y + self.sight] = 0.0
+    def _make_global_grid_arrays(self):
+        """
+        Create global arrays for grid observation space
+        """
+        grid_shape_x, grid_shape_y = self.field_size
+        grid_shape_x += 2 * self.sight
+        grid_shape_y += 2 * self.sight
+        grid_shape = (grid_shape_x, grid_shape_y)
 
-            return np.stack([agents_layer, foods_layer, access_layer])
+        agents_layer = np.zeros(grid_shape, dtype=np.float32)
+        for player in self.players:
+            player_x, player_y = player.position
+            if self._observe_agent_levels:
+                agents_layer[player_x + self.sight, player_y + self.sight] = (
+                    player.level
+                )
+            else:
+                agents_layer[player_x + self.sight, player_y + self.sight] = 1
 
-        def get_agent_grid_bounds(agent_x, agent_y):
-            return (
-                agent_x,
-                agent_x + 2 * self.sight + 1,
-                agent_y,
-                agent_y + 2 * self.sight + 1,
-            )
+        foods_layer = np.zeros(grid_shape, dtype=np.float32)
+        foods_layer[self.sight : -self.sight, self.sight : -self.sight] = (
+            self.field.copy()
+        )
 
-        observations = [self._make_obs(player) for player in self.players]
-        if self._grid_observation:
-            layers = make_global_grid_arrays()
-            agents_bounds = [
-                get_agent_grid_bounds(*player.position) for player in self.players
-            ]
-            nobs = tuple(
-                [
-                    layers[:, start_x:end_x, start_y:end_y]
-                    for start_x, end_x, start_y, end_y in agents_bounds
-                ]
-            )
-        else:
-            nobs = tuple([make_obs_array(obs) for obs in observations])
+        access_layer = np.ones(grid_shape, dtype=np.float32)
+        # out of bounds not accessible
+        access_layer[: self.sight, :] = 0.0
+        access_layer[-self.sight :, :] = 0.0
+        access_layer[:, : self.sight] = 0.0
+        access_layer[:, -self.sight :] = 0.0
+        # agent locations are not accessible
+        for player in self.players:
+            player_x, player_y = player.position
+            access_layer[player_x + self.sight, player_y + self.sight] = 0.0
+        # food locations are not accessible
+        foods_x, foods_y = self.field.nonzero()
+        for x, y in zip(foods_x, foods_y):
+            access_layer[x + self.sight, y + self.sight] = 0.0
 
-        # check the space of obs
-        for i, obs in enumerate(nobs):
-            assert self.observation_space[i].contains(
-                obs
-            ), f"obs space error: obs: {obs}, obs_space: {self.observation_space[i]}"
+        return np.stack([agents_layer, foods_layer, access_layer])
 
-        return nobs
+    def _get_agent_grid_bounds(self, agent_x, agent_y):
+        return (
+            agent_x,
+            agent_x + 2 * self.sight + 1,
+            agent_y,
+            agent_y + 2 * self.sight + 1,
+        )
 
     def _get_info(self):
         return {}
@@ -646,15 +657,15 @@ class ForagingEnv(gym.Env):
         self.spawn_players(self.min_player_level, self.max_player_level)
 
         player_levels = sorted([player.level for player in self.players])
-        self.spawn_food(
-            self.max_num_food,
-            min_levels=self.min_food_level,
-            max_levels=(
-                self.max_food_level
-                if self.max_food_level is not None
-                else np.array([sum(player_levels[:3])] * self.max_num_food)
-            ),
-        )
+        # self.spawn_food(
+        #     self.max_num_food,
+        #     min_levels=self.min_food_level,
+        #     max_levels=(
+        #         self.max_food_level
+        #         if self.max_food_level is not None
+        #         else np.array([sum(player_levels[:3])] * self.max_num_food)
+        #     ),
+        # )
 
         self.current_step = 0
         self._game_over = False
@@ -768,6 +779,7 @@ class ForagingEnv(gym.Env):
     def _init_render(self):
         if self.render_mode == "rgb_array":
             import pyglet
+
             pyglet.options["headless"] = True
         from .rendering import Viewer
 

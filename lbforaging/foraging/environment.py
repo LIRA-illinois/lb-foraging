@@ -457,7 +457,8 @@ class ForagingEnv(gym.Env):
         # with only 4 agents and 6 actions per agent, you get 400 joint actions
         return list(product(*[self._valid_actions[player] for player in self.players]))
 
-    def get_avail_actions(self):
+    @property
+    def avail_actions(self):
         # added this method to interface with PYMARL training loop
         # returns list of agent lists, where each agent's list has binary values representing
         # available actions
@@ -473,7 +474,8 @@ class ForagingEnv(gym.Env):
             avail_actions[action.value] = 1
         return avail_actions
 
-    def get_state(self):
+    @property
+    def state(self):
         # added this method to interface with PYMARL training loop, taken from the MAIC paper's implementation of LBF
         # https://github.com/mansicer/MAIC/blob/main/src/envs/lbforaging/foraging.py
         # This is not a real state since the team may not be able to collectively observe
@@ -486,7 +488,8 @@ class ForagingEnv(gym.Env):
             state = np.concatenate([state, obs[i + 1]])
         return state
 
-    def get_obs(self):
+    @property
+    def obs(self):
         # added this method to interface with PYMARL training loop
         return self._make_gym_obs()
 

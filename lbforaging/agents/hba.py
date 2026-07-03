@@ -1,20 +1,21 @@
+import operator
+import random
 from collections import defaultdict
 from functools import reduce
 from itertools import product
-import operator
-import random
 
 import numpy as np
+from numpy import ndarray
 
-from lbforaging.agents.q_agent import QAgent
 from lbforaging.agents.heuristic_agent import H1, H2, H3, H4
+from lbforaging.agents.q_agent import QAgent
 from lbforaging.foraging.environment import ForagingEnv as Env
 
 
 class HBAAgent(QAgent):
     name = "HBA"
 
-    def __init__(self, *kargs, **kwargs):
+    def __init__(self, *kargs, **kwargs) -> None:
         super().__init__(*kargs, **kwargs)
 
         self.type_space = [H1, H2, H3, H4]
@@ -26,8 +27,8 @@ class HBAAgent(QAgent):
         self.belief = np.ones((N, D)) / D
         self.prev_obs = None
 
-    def gtw(self, a, b, c):
-        def f(x):
+    def gtw(self, a: int, b: float, c: int):
+        def f(x) -> int:
             return max(0, a - b * (x - 1) ** c)
 
         return f
@@ -66,7 +67,9 @@ class HBAAgent(QAgent):
         self.prev_obs = obs
         return val
 
-    def generate_typespace_moves(self, env, exclude_player=None):
+    def generate_typespace_moves(
+        self, env, exclude_player: int | None = None
+    ) -> ndarray[tuple[int, int]]:
         moves = np.empty((len(env.players), len(self.type_space)), dtype=object)
         for i, player in enumerate(env.players):
             # if i == exclude_player:  # todo this player can be excluded (because it's us)
@@ -78,7 +81,7 @@ class HBAAgent(QAgent):
                 moves[i, j] = action
         return moves
 
-    def update_belief(self, obs):
+    def update_belief(self, obs) -> None:
         player_no = next((i for i, item in enumerate(obs.players) if item.is_self))
 
         env = Env.from_obs(self.prev_obs)
@@ -106,7 +109,7 @@ class HBAAgent(QAgent):
             self.belief[i, :] = self.belief[i, :] * L
             self.belief[i, :] = self.belief[i, :] / sum(self.belief[i, :])
 
-    def expand(self, obs, depth):
+    def expand(self, obs, depth) -> None:
         player_no = next((i for i, item in enumerate(obs.players) if item.is_self))
 
         env = Env.from_obs(obs)

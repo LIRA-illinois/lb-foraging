@@ -4,13 +4,12 @@ import pickle
 import random
 import time
 
-import plotly.graph_objs as go
 import networkx as nx
+import plotly.graph_objs as go
 from networkx.drawing.nx_pydot import graphviz_layout
 
-from lbforaging.foraging.environment import ForagingEnv as Env
 from lbforaging.agents.agent import BaseAgent
-
+from lbforaging.foraging.environment import ForagingEnv as Env
 
 MCTS_DEPTH = 15
 
@@ -104,7 +103,7 @@ def plot_graph(G):
 
 
 class Node:
-    def __init__(self, state: Env):
+    def __init__(self, state: Env) -> None:
         self.root = None
 
         self.move = None
@@ -120,10 +119,10 @@ class Node:
 
         self.is_terminal = False
 
-    def not_expanded(self):
+    def not_expanded(self) -> bool:
         return len(self.available_moves - self.tried_moves) > 0
 
-    def non_terminal(self):
+    def non_terminal(self) -> bool:
         return not self.is_terminal
 
     def expand(self):
@@ -156,7 +155,7 @@ class Node:
 
         return u_new
 
-    def best_child(self, c=2, h=10):
+    def best_child(self, c: int = 2, h: int = 10):
         my_id = 0  # todo fix this
 
         ucb1 = lambda u: (
@@ -177,7 +176,7 @@ class Node:
 class MonteCarloAgent(BaseAgent):
     name = "Monte Carlo Agent"
 
-    def __init__(self, *kargs, **kwargs):
+    def __init__(self, *kargs, **kwargs) -> None:
         super().__init__(*kargs, **kwargs)
         pass
 
@@ -190,7 +189,7 @@ class MonteCarloAgent(BaseAgent):
 
         return move[my_id]
 
-    def uct_search(self, state: Env, timeout=0.5):
+    def uct_search(self, state: Env, timeout=0.5) -> Node:
         graph = nx.DiGraph()
 
         root = Node(state)
@@ -218,7 +217,7 @@ class MonteCarloAgent(BaseAgent):
         # print(root.visits)
         return root
 
-    def backup(self, u: Node, delta: float):
+    def backup(self, u: Node, delta: float) -> None:
         while u is not None:
             u.visits += 1
             u.reward += delta
@@ -232,7 +231,7 @@ class MonteCarloAgent(BaseAgent):
                 u = u.best_child()
         return u
 
-    def random_play(self, state: Env):
+    def random_play(self, state: Env) -> None:
         actions = state.get_valid_actions()
         a = random.choice(actions)
         state.step(a)

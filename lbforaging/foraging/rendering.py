@@ -70,7 +70,7 @@ def get_display(spec):
 
 
 class Viewer(object):
-    def __init__(self, world_size):
+    def __init__(self, world_size) -> None:
         display = get_display(None)
         self.rows, self.cols = world_size
 
@@ -96,14 +96,14 @@ class Viewer(object):
         self.img_apple = pyglet.resource.image("apple.png")
         self.img_agent = pyglet.resource.image("agent.png")
 
-    def close(self):
+    def close(self) -> None:
         self.window.close()
 
     def window_closed_by_user(self):
         self.isopen = False
         exit()
 
-    def set_bounds(self, left, right, bottom, top):
+    def set_bounds(self, left, right, bottom, top) -> None:
         assert right > left and top > bottom
         scalex = self.width / (right - left)
         scaley = self.height / (top - bottom)
@@ -111,7 +111,7 @@ class Viewer(object):
             translation=(-left * scalex, -bottom * scaley), scale=(scalex, scaley)
         )
 
-    def render(self, env, return_rgb_array=False):
+    def render(self, env, return_rgb_array: bool = False):
         glClearColor(*_WHITE, 0)
         self.window.clear()
         self.window.switch_to()
@@ -130,7 +130,7 @@ class Viewer(object):
         self.window.flip()
         return arr if return_rgb_array else self.isopen
 
-    def _draw_grid(self):
+    def _draw_grid(self) -> None:
         batch = pyglet.graphics.Batch()
         # vertical lines
         for r in range(self.rows + 1):
@@ -169,7 +169,7 @@ class Viewer(object):
             )
         batch.draw()
 
-    def _draw_food(self, env):
+    def _draw_food(self, env) -> None:
         idxes = list(zip(*env.field.nonzero()))
         apples = []
         batch = pyglet.graphics.Batch()
@@ -191,7 +191,7 @@ class Viewer(object):
         for row, col in idxes:
             self._draw_badge(row, col, env.field[row, col])
 
-    def _draw_players(self, env):
+    def _draw_players(self, env) -> None:
         players = []
         batch = pyglet.graphics.Batch()
 
@@ -211,7 +211,7 @@ class Viewer(object):
         for p in env.players:
             self._draw_badge(*p.position, p.level)
 
-    def _draw_badge(self, row, col, level):
+    def _draw_badge(self, row, col, level) -> None:
         resolution = 6
         radius = self.grid_size / 5
 

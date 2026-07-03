@@ -10,7 +10,7 @@ import lbforaging  # noqa
 logger = logging.getLogger(__name__)
 
 
-def _game_loop(env, render):
+def _game_loop(env, render) -> None:
     """ """
     obss, _ = env.reset()
     done = False
@@ -34,7 +34,7 @@ def _game_loop(env, render):
     print("Returns: ", returns)
 
 
-def main(episodes=1, render=False):
+def main(episodes: int = 1, render: bool = False) -> None:
     env = gym.make("Foraging-8x8-2p-2f-v3")
 
     for episode in range(episodes):

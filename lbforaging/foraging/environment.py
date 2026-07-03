@@ -1,11 +1,13 @@
-from typing import Iterable, Literal, Optional
-from collections import namedtuple, defaultdict
+import logging
+from collections import defaultdict, namedtuple
 from enum import Enum
 from itertools import product
-import logging
+from typing import Iterable, Literal, Optional, Self
 
 import gymnasium as gym
 import numpy as np
+from gymnasium.spaces.box import Box
+from numpy import ndarray
 from numpy.typing import NDArray
 
 
@@ -27,10 +29,10 @@ class CellEntity(Enum):
 
 
 class Player:
-    def __init__(self):
+    def __init__(self) -> None:
         self.reset()
 
-    def reset(self):
+    def reset(self) -> None:
         """reset player's internal state to despawn it from the environment and start the next episode with a clean slate"""
         self.controller = None
         self.position = None
@@ -41,14 +43,14 @@ class Player:
         self.history = None
         self.current_step = None
 
-    def spawn(self, position, level, field_size):
+    def spawn(self, position, level, field_size) -> None:
         self.history = []
         self.position = position
         self.level = level
         self.field_size = field_size
         self.score = 0
 
-    def set_controller(self, controller):
+    def set_controller(self, controller) -> None:
         self.controller = controller
 
     def step(self, obs):
@@ -94,12 +96,12 @@ class ForagingEnv(gym.Env):
         max_episode_steps,
         force_coop,
         reward_type: Literal["team", "individual"] = "team",
-        normalize_reward=True,
-        grid_observation=False,
-        observe_agent_levels=True,
-        penalty=0.0,
-        render_mode="rgb_array",
-    ):
+        normalize_reward: bool = True,
+        grid_observation: bool = False,
+        observe_agent_levels: bool = True,
+        penalty: float = 0.0,
+        render_mode: str = "rgb_array",
+    ) -> None:
         self.logger = logging.getLogger(__name__)
         self.render_mode = render_mode
         self.players = [Player() for _ in range(players)]
@@ -109,9 +111,9 @@ class ForagingEnv(gym.Env):
         self.penalty = penalty
 
         if isinstance(min_food_level, Iterable):
-            assert (
-                len(min_food_level) == max_num_food
-            ), "min_food_level must be a scalar or a list of length max_num_food"
+            assert len(min_food_level) == max_num_food, (
+                "min_food_level must be a scalar or a list of length max_num_food"
+            )
             self.min_food_level = np.array(min_food_level)
         else:
             self.min_food_level = np.array([min_food_level] * max_num_food)
@@ -119,9 +121,9 @@ class ForagingEnv(gym.Env):
         if max_food_level is None:
             self.max_food_level = None
         elif isinstance(max_food_level, Iterable):
-            assert (
-                len(max_food_level) == max_num_food
-            ), "max_food_level must be a scalar or a list of length max_num_food"
+            assert len(max_food_level) == max_num_food, (
+                "max_food_level must be a scalar or a list of length max_num_food"
+            )
             self.max_food_level = np.array(max_food_level)
         else:
             self.max_food_level = np.array([max_food_level] * max_num_food)
@@ -131,25 +133,25 @@ class ForagingEnv(gym.Env):
             for min_food_level, max_food_level in zip(
                 self.min_food_level, self.max_food_level
             ):
-                assert (
-                    min_food_level <= max_food_level
-                ), "min_food_level must be less than or equal to max_food_level for each food"
+                assert min_food_level <= max_food_level, (
+                    "min_food_level must be less than or equal to max_food_level for each food"
+                )
 
         self.max_num_food = max_num_food
         self._food_spawned = 0.0
 
         if isinstance(min_player_level, Iterable):
-            assert (
-                len(min_player_level) == players
-            ), "min_player_level must be a scalar or a list of length players"
+            assert len(min_player_level) == players, (
+                "min_player_level must be a scalar or a list of length players"
+            )
             self.min_player_level = np.array(min_player_level)
         else:
             self.min_player_level = np.array([min_player_level] * players)
 
         if isinstance(max_player_level, Iterable):
-            assert (
-                len(max_player_level) == players
-            ), "max_player_level must be a scalar or a list of length players"
+            assert len(max_player_level) == players, (
+                "max_player_level must be a scalar or a list of length players"
+            )
             self.max_player_level = np.array(max_player_level)
         else:
             self.max_player_level = np.array([max_player_level] * players)
@@ -159,9 +161,9 @@ class ForagingEnv(gym.Env):
             for i, (min_player_level, max_player_level) in enumerate(
                 zip(self.min_player_level, self.max_player_level)
             ):
-                assert (
-                    min_player_level <= max_player_level
-                ), f"min_player_level must be less than or equal to max_player_level for each player but was {min_player_level} > {max_player_level} for player {i}"
+                assert min_player_level <= max_player_level, (
+                    f"min_player_level must be less than or equal to max_player_level for each player but was {min_player_level} > {max_player_level} for player {i}"
+                )
 
         self.sight = sight
         self.force_coop = force_coop
@@ -188,7 +190,7 @@ class ForagingEnv(gym.Env):
 
         self.n_players = len(self.players)
 
-    def _get_observation_space(self):
+    def _get_observation_space(self) -> Box:
         """The Observation Space for each agent.
         - all of the board (board_size^2) with foods
         - player description (x, y, level)*player_count
@@ -252,7 +254,7 @@ class ForagingEnv(gym.Env):
         )
 
     @classmethod
-    def from_obs(cls, obs):
+    def from_obs(cls, obs) -> Self:
         players = []
         for p in obs.players:
             player = Player()
@@ -296,7 +298,7 @@ class ForagingEnv(gym.Env):
     def game_over(self):
         return self._game_over
 
-    def _gen_valid_moves(self):
+    def _gen_valid_moves(self) -> None:
         self._valid_actions = {
             player: [
                 action for action in Action if self._is_valid_action(player, action)
@@ -338,7 +340,7 @@ class ForagingEnv(gym.Env):
         elif col < self.cols - 1 and self.field[row, col + 1] > 0:
             return row, col + 1
 
-    def adjacent_players(self, row, col):
+    def adjacent_players(self, row, col) -> list[Player]:
         return [
             player
             for player in self.players
@@ -348,7 +350,7 @@ class ForagingEnv(gym.Env):
             and player.position[0] == row
         ]
 
-    def spawn_food(self, max_num_food, min_levels, max_levels):
+    def spawn_food(self, max_num_food, min_levels, max_levels) -> None:
         food_count = 0
         attempts = 0
         min_levels = max_levels if self.force_coop else min_levels
@@ -381,7 +383,7 @@ class ForagingEnv(gym.Env):
             food_count += 1
         self._food_spawned = self.field.sum()
 
-    def _is_empty_location(self, row, col):
+    def _is_empty_location(self, row, col) -> bool:
         if self.field[row, col] != 0:
             return False
         for a in self.players:
@@ -390,12 +392,13 @@ class ForagingEnv(gym.Env):
 
         return True
 
-    def spawn_players(self, min_player_levels, max_player_levels):
+    def spawn_players(
+        self, min_player_levels: ndarray, max_player_levels: ndarray
+    ) -> None:
         # permute player levels
         player_permutation = self.np_random.permutation(len(self.players))
         min_player_levels = min_player_levels[player_permutation]
         max_player_levels = max_player_levels[player_permutation]
-
 
         for player, min_player_level, max_player_level in zip(
             self.players, min_player_levels, max_player_levels
@@ -416,7 +419,7 @@ class ForagingEnv(gym.Env):
                     break
                 attempts += 1
 
-    def _is_valid_action(self, player, action):
+    def _is_valid_action(self, player: Player, action: Action):
         if action == Action.NONE:
             return True
         elif action == Action.NORTH:
@@ -458,7 +461,7 @@ class ForagingEnv(gym.Env):
         return list(product(*[self._valid_actions[player] for player in self.players]))
 
     @property
-    def avail_actions(self):
+    def avail_actions(self) -> list[list[int]]:
         # added this method to interface with PYMARL training loop
         # returns list of agent lists, where each agent's list has binary values representing
         # available actions
@@ -467,7 +470,7 @@ class ForagingEnv(gym.Env):
 
         return [self._get_avail_agent_actions(player) for player in self.players]
 
-    def _get_avail_agent_actions(self, player: Player):
+    def _get_avail_agent_actions(self, player: Player) -> list[int]:
         avail_actions = [0] * self.n_actions
         player_actions = self._valid_actions[player]
         for action in player_actions:
@@ -512,13 +515,13 @@ class ForagingEnv(gym.Env):
 
         # check the space of obs
         for i, obs in enumerate(nobs):
-            assert self.observation_space[i].contains(
-                obs
-            ), f"obs space error: obs: {obs}, obs_space: {self.observation_space[i]}"
+            assert self.observation_space[i].contains(obs), (
+                f"obs space error: obs: {obs}, obs_space: {self.observation_space[i]}"
+            )
 
         return nobs
 
-    def _make_obs(self, player) -> Observation:
+    def _make_obs(self, player: Player) -> Observation:
         return self.Observation(
             actions=self._valid_actions[player],
             # get player's relative position compared to ego agent
@@ -555,7 +558,7 @@ class ForagingEnv(gym.Env):
             current_step=self.current_step,
         )
 
-    def _make_obs_array(self, observation):
+    def _make_obs_array(self, observation: ForagingEnv.Observation):
         obs = np.zeros(self.observation_space[0].shape, dtype=np.float32)
         # obs[: observation.field.size] = observation.field.flatten()
         # food observation
@@ -572,7 +575,6 @@ class ForagingEnv(gym.Env):
             obs[3 * i + 1] = x
             obs[3 * i + 2] = observation.field[y, x]
 
-
         # player observation
         # number of other players known to agent, initialize each agent's entry as [-1, -1, 0]
         player_obs_len = 3 if self._observe_agent_levels else 2
@@ -581,7 +583,6 @@ class ForagingEnv(gym.Env):
             obs[self.max_num_food * 3 + player_obs_len * i + 1] = -1
             if self._observe_agent_levels:
                 obs[self.max_num_food * 3 + player_obs_len * i + 2] = 0
-
 
         # self player is always first
         seen_players = [p for p in observation.players if p.is_self] + [
@@ -596,7 +597,7 @@ class ForagingEnv(gym.Env):
 
         return obs
 
-    def _make_global_grid_arrays(self):
+    def _make_global_grid_arrays(self) -> ndarray:
         """
         Create global arrays for grid observation space
         """
@@ -779,7 +780,7 @@ class ForagingEnv(gym.Env):
 
         return self._make_gym_obs(), reward_out, done, truncated, info
 
-    def _init_render(self):
+    def _init_render(self) -> None:
         if self.render_mode == "rgb_array":
             import pyglet
 
@@ -797,11 +798,11 @@ class ForagingEnv(gym.Env):
             self, return_rgb_array=self.render_mode == "rgb_array"
         )
 
-    def close(self):
+    def close(self) -> None:
         if self.viewer:
             self.viewer.close()
 
-    def get_env_info(self):
+    def get_env_info(self) -> dict[str, int]:
         env_info = {
             "state_shape": self._get_state_size(),
             "obs_shape": self._get_obs_size(),
@@ -810,11 +811,11 @@ class ForagingEnv(gym.Env):
         }
         return env_info
 
-    def _get_obs_size(self):
+    def _get_obs_size(self) -> int:
         """Returns the shape of the observation"""
         return self._get_observation_space().shape[0]
 
-    def _get_state_size(self):
+    def _get_state_size(self) -> int:
         """Returns the shape of the state"""
         return self._get_obs_size() * self.n_players
 
@@ -822,7 +823,7 @@ class ForagingEnv(gym.Env):
         """Test wrapper to test the current observation in a public manner."""
         return self._make_gym_obs()
 
-    def test_gen_valid_moves(self):
+    def test_gen_valid_moves(self) -> bool:
         """Wrapper around a private method to test if the generated moves are valid."""
         try:
             self._gen_valid_moves()

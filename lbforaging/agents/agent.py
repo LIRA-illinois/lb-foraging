@@ -8,10 +8,10 @@ _MAX_INT = 999999
 class BaseAgent:
     name = "Prototype Agent"
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.name
 
-    def __init__(self, player):
+    def __init__(self, player) -> None:
         self.logger = logging.getLogger(__name__)
         self.player = player
 
@@ -51,7 +51,7 @@ class BaseAgent:
 
         return r[min_idx], c[min_idx]
 
-    def _make_state(self, obs):
+    def _make_state(self, obs) -> int:
         state = str(obs.field)
         for c in ["]", "[", " ", "\n"]:
             state = state.replace(c, "")
@@ -61,5 +61,5 @@ class BaseAgent:
 
         return int(state)
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         pass

@@ -13,16 +13,18 @@ You can control the interaction with the following keys:
 - D: display agent info (per step)
 - ESC: exit
 """
-from argparse import ArgumentParser
-import warnings
 
-import numpy as np
+import warnings
+from argparse import ArgumentParser, Namespace
+from typing import SupportsFloat
+
 import gymnasium as gym
+import numpy as np
 
 from lbforaging.foraging.environment import Action
 
 
-def parse_args():
+def parse_args() -> Namespace:
     parser = ArgumentParser()
     parser.add_argument(
         "--env",
@@ -52,7 +54,7 @@ class InteractiveLBFEnv:
         env: str,
         max_steps: int,
         display_info: bool = True,
-    ):
+    ) -> None:
         self.env = gym.make(env, render_mode="human", max_episode_steps=max_steps)
         self.n_agents = self.env.unwrapped.n_agents
         self.running = True
@@ -75,7 +77,7 @@ class InteractiveLBFEnv:
 
         self._cycle()
 
-    def _help(self):
+    def _help(self) -> None:
         print("Use the arrow keys to move the current agent")
         print("Use the L key to load food")
         print("Use the K key to load food and keep the agent loading")
@@ -87,12 +89,12 @@ class InteractiveLBFEnv:
         print("Press ESC to exit")
         print()
 
-    def _get_current_agent_info(self):
+    def _get_current_agent_info(self) -> str:
         agent_level = self.env.unwrapped.players[self.current_agent_index].level
         x, y = self.env.unwrapped.players[self.current_agent_index].position
         return f"Agent {self.current_agent_index + 1} (Level {agent_level}, at row {x + 1}, col {y + 1})"
 
-    def _display_info(self, obss, rews, done):
+    def _display_info(self, obss, rews: SupportsFloat, done: bool) -> None:
         print(f"Step {self.t}:")
         print(f"\tSelected: {self._get_current_agent_info()}")
         if self.loading_agents:
@@ -102,13 +104,13 @@ class InteractiveLBFEnv:
         print(f"\tDone: {done}")
         print()
 
-    def _increment_current_agent_index(self, index: int):
+    def _increment_current_agent_index(self, index: int) -> int:
         index += 1
         if index == self.n_agents:
             index = 0
         return index
 
-    def _key_press(self, k, mod):
+    def _key_press(self, k, mod) -> None:
         from pyglet.window import key
 
         if k == key.LEFT:
@@ -152,11 +154,13 @@ class InteractiveLBFEnv:
             if self.current_agent_index in self.loading_agents:
                 self.loading_agents.remove(self.current_agent_index)
 
-    def _cycle(self):
+    def _cycle(self) -> None:
         while self.running:
             if self.reset:
                 if self.display_info:
-                    print(f"Finished episode with episodic returns: {[round(ret, 3) for ret in self.ep_returns]}")
+                    print(
+                        f"Finished episode with episodic returns: {[round(ret, 3) for ret in self.ep_returns]}"
+                    )
                     print()
                 obss, _ = self.env.reset()
                 self.reset = False
@@ -168,9 +172,14 @@ class InteractiveLBFEnv:
                     self._display_info(obss, [0] * self.n_agents, False)
 
             if self.current_action is not None:
-                actions = [Action.NONE if i not in self.loading_agents else Action.LOAD for i in range(self.n_agents)]
+                actions = [
+                    Action.NONE if i not in self.loading_agents else Action.LOAD
+                    for i in range(self.n_agents)
+                ]
                 actions[self.current_agent_index] = self.current_action
-                obss, rews, done, trunc, info = self.env.step([act.value for act in actions])
+                obss, rews, done, trunc, info = self.env.step(
+                    [act.value for act in actions]
+                )
                 self.ep_returns += np.array(rews)
                 self.t += 1
 
@@ -185,7 +194,8 @@ class InteractiveLBFEnv:
         self.env.close()
 
 
-
 if __name__ == "__main__":
     args = parse_args()
-    InteractiveLBFEnv(env=args.env, display_info=args.display_info, max_steps=args.max_steps)
+    InteractiveLBFEnv(
+        env=args.env, display_info=args.display_info, max_steps=args.max_steps
+    )

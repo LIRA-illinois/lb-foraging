@@ -1,13 +1,12 @@
 import random
-from itertools import repeat, product
+from itertools import product, repeat
 
 import numpy as np
 import pandas as pd
 
 from lbforaging.agents import H1, BaseAgent
-from lbforaging.foraging.environment import ForagingEnv as Env
 from lbforaging.foraging.environment import Action
-
+from lbforaging.foraging.environment import ForagingEnv as Env
 
 _CACHE = None
 
@@ -15,7 +14,7 @@ _CACHE = None
 class QLearningTable:
     _DATA_FILE = "qtable.gz"
 
-    def __init__(self, actions):
+    def __init__(self, actions) -> None:
         self.actions = actions  # a list
 
         self.beta = 0.2
@@ -29,7 +28,7 @@ class QLearningTable:
         self.q_table = pd.DataFrame(columns=self.actions, dtype=np.float64)
         self.e_table = pd.DataFrame(columns=self.actions, dtype=np.float64)
 
-    def clear_table(self):
+    def clear_table(self) -> None:
         self.q_table = self.q_table.iloc[0:0]
         self.e_table = self.e_table.iloc[0:0]
 
@@ -47,7 +46,7 @@ class QLearningTable:
 
         return action
 
-    def learn(self, s, a, r, s_):
+    def learn(self, s, a, r, s_) -> None:
         self.check_state_exist(s_)
         self.check_state_exist(s)
         # pd.set_option('display.width', 1000)
@@ -81,7 +80,7 @@ class QLearningTable:
 
     # print("-------")
 
-    def check_state_exist(self, state):
+    def check_state_exist(self, state) -> None:
         if state not in self.q_table.index:
             # append new state to q table
             self.q_table = self.q_table.append(
@@ -99,7 +98,7 @@ class QLearningTable:
 class QAgent(BaseAgent):
     name = "Q Agent"
 
-    def __init__(self, *kargs, **kwargs):
+    def __init__(self, *kargs, **kwargs) -> None:
         super().__init__(*kargs, **kwargs)
 
         self.Q = None
@@ -109,7 +108,7 @@ class QAgent(BaseAgent):
         self.e_1 = 0
         self.e_2 = 0.2  # expand stage
 
-    def expand(self, obs, depth):
+    def expand(self, obs, depth) -> None:
         player_no = next((i for i, item in enumerate(obs.players) if item.is_self))
 
         env = Env.from_obs(obs)

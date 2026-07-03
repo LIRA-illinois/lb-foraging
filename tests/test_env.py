@@ -1,13 +1,13 @@
 import gymnasium as gym
 import numpy as np
 import pytest
-
+from numpy import ndarray
 
 import lbforaging  # noqa
 from lbforaging.foraging.environment import Action
 
 
-def manhattan_distance(x, y):
+def manhattan_distance(x: ndarray, y: ndarray) -> int:
     return sum(abs(a - b) for a, b in zip(x, y))
 
 
@@ -69,7 +69,7 @@ def simple2p1f_sight2():
     return env
 
 
-def test_make():
+def test_make() -> None:
     names = [
         "Foraging-8x8-2p-1f-v3",
         "Foraging-5x5-2p-1f-v3",
@@ -82,11 +82,11 @@ def test_make():
         env.reset()
 
 
-def test_spaces():
+def test_spaces() -> None:
     pass
 
 
-def test_seed():
+def test_seed() -> None:
     env = gym.make("Foraging-8x8-2p-2f-v3")
     for seed in range(10):
         obs1 = []
@@ -104,7 +104,7 @@ def test_seed():
         assert np.array_equal(o1, o2)
 
 
-def test_food_spawning_0():
+def test_food_spawning_0() -> None:
     env = gym.make("Foraging-6x6-2p-2f-v3")
 
     for i in range(1000):
@@ -124,7 +124,7 @@ def test_food_spawning_0():
         assert foods[1][1] not in [0, 7]
 
 
-def test_food_spawning_1():
+def test_food_spawning_1() -> None:
     env = gym.make("Foraging-8x8-2p-3f-v3")
 
     for i in range(1000):
@@ -140,25 +140,25 @@ def test_food_spawning_1():
         assert manhattan_distance(foods[1], foods[2]) > 2
 
 
-def test_reward_0(simple2p1f):
+def test_reward_0(simple2p1f) -> None:
     _, rewards, _, _, _ = simple2p1f.step([5, 5])
     assert rewards[0] == 0.5
     assert rewards[1] == 0.5
 
 
-def test_reward_1(simple2p1f):
+def test_reward_1(simple2p1f) -> None:
     _, rewards, _, _, _ = simple2p1f.step([0, 5])
     assert rewards[0] == 0
     assert rewards[1] == 1
 
 
-def test_reward_2(simple2p1f):
+def test_reward_2(simple2p1f) -> None:
     _, rewards, _, _, _ = simple2p1f.step([5, 0])
     assert rewards[0] == 1
     assert rewards[1] == 0
 
 
-def test_partial_obs_1(simple2p1f_sight1):
+def test_partial_obs_1(simple2p1f_sight1) -> None:
     env = simple2p1f_sight1
     obs = env.unwrapped.test_make_gym_obs()
 
@@ -166,7 +166,7 @@ def test_partial_obs_1(simple2p1f_sight1):
     assert obs[1][-2] == -1
 
 
-def test_partial_obs_2(simple2p1f_sight2):
+def test_partial_obs_2(simple2p1f_sight2) -> None:
     env = simple2p1f_sight2
     obs = env.unwrapped.test_make_gym_obs()
 
@@ -179,7 +179,7 @@ def test_partial_obs_2(simple2p1f_sight2):
     assert obs[1][-2] == -1
 
 
-def test_partial_obs_3(simple2p1f):
+def test_partial_obs_3(simple2p1f) -> None:
     env = simple2p1f
     obs = env.unwrapped.test_make_gym_obs()
 
@@ -192,7 +192,7 @@ def test_partial_obs_3(simple2p1f):
     assert obs[1][-2] > -1
 
 
-def test_reproducibility(simple2p1f):
+def test_reproducibility(simple2p1f) -> None:
     env = simple2p1f
     episodes_per_seed = 5
     for seed in range(5):
@@ -228,22 +228,22 @@ def test_reproducibility(simple2p1f):
             print()
 
         for i, (obs1, obs2) in enumerate(zip(obss1, obss2)):
-            assert np.array_equal(
-                obs1, obs2
-            ), f"Observations of env not identical for episode {i} with seed {seed}"
+            assert np.array_equal(obs1, obs2), (
+                f"Observations of env not identical for episode {i} with seed {seed}"
+            )
         for i, (field1, field2) in enumerate(zip(field1, field2)):
-            assert np.array_equal(
-                field1, field2
-            ), f"Fields of env not identical for episode {i} with seed {seed}"
+            assert np.array_equal(field1, field2), (
+                f"Fields of env not identical for episode {i} with seed {seed}"
+            )
         for i, (player_positions1, player_positions2) in enumerate(
             zip(player_positions1, player_positions2)
         ):
-            assert (
-                player_positions1 == player_positions2
-            ), f"Player positions of env not identical for episode {i} with seed {seed}"
+            assert player_positions1 == player_positions2, (
+                f"Player positions of env not identical for episode {i} with seed {seed}"
+            )
         for i, (player_levels1, player_levels2) in enumerate(
             zip(player_levels1, player_levels2)
         ):
-            assert (
-                player_levels1 == player_levels2
-            ), f"Player levels of env not identical for episode {i} with seed {seed}"
+            assert player_levels1 == player_levels2, (
+                f"Player levels of env not identical for episode {i} with seed {seed}"
+            )

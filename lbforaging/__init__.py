@@ -1,7 +1,7 @@
-from typing import Optional
 from itertools import product
-from gymnasium import register
+from typing import Optional
 
+from gymnasium import register
 
 # registering all these envs takes forever, so use a reduced version
 sizes = range(4, 12)
@@ -16,7 +16,7 @@ pens = [False]  # [True, False]
 
 def get_env_id(
     s: int, p: int, f: int, c: bool, po: bool, pen: bool, mfl: Optional[int] = None
-):
+) -> str:
     """_summary_
 
     Parameters
@@ -68,7 +68,7 @@ def get_env_id(
     return env_id
 
 
-def register_envs(max_episode_steps: int):
+def register_envs(max_episode_steps: int) -> None:
     for s, p, f, mfl, c, po, pen in product(
         sizes, players, foods, max_food_level, coop, partial_obs, pens
     ):
@@ -93,7 +93,7 @@ def register_envs(max_episode_steps: int):
         )
 
 
-def register_grid_envs():
+def register_grid_envs() -> None:
     for s, p, f, mfl, c in product(sizes, players, foods, max_food_level, coop):
         for sight in range(1, s + 1):
             register(
